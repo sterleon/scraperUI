@@ -14,6 +14,15 @@ import {
 	CardTitle,
 } from '@/components/ui/card';
 import {
+	Pagination,
+	PaginationContent,
+	PaginationEllipsis,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
 	DropdownMenuContent,
@@ -49,23 +58,41 @@ export interface Job {
 export default function Dashboard() {
 	const supabase = createClient();
 	const [jobs, setJobs] = useState<Job[]>([]);
+	const [currentIndex, setCurrentIndex] = useState<number>(0);
+
+	const getStartAndEndIndex = () => {
+		const itemsPerPage = 10;
+		const from = currentIndex * itemsPerPage;
+		const to = from + itemsPerPage;
+	};
+
+	const fetchUserAndJobs = async () => {
+		const {
+			data: { user },
+		} = await supabase.auth.getUser();
+
+		if (!user) {
+			return redirect('/sign-in');
+		}
+		let { data: jobs, error } = await supabase.from('jobs').select('*');
+		if (jobs) {
+			setJobs(jobs);
+		} else if (error) {
+			console.log(error);
+		}
+	};
+
+	const formatDate = (dateString: string): string => {
+		const date = new Date(dateString);
+
+		const day = date.getUTCDate();
+		const month = date.getUTCMonth() + 1;
+		const year = date.getUTCFullYear();
+
+		return `${month}-${day}-${year}`;
+	};
 
 	useEffect(() => {
-		const fetchUserAndJobs = async () => {
-			const {
-				data: { user },
-			} = await supabase.auth.getUser();
-
-			if (!user) {
-				return redirect('/sign-in');
-			}
-			let { data: jobs, error } = await supabase.from('jobs').select('*');
-			if (jobs) {
-				setJobs(jobs);
-			} else if (error) {
-				console.log(error);
-			}
-		};
 		fetchUserAndJobs();
 	}, []);
 
@@ -79,7 +106,6 @@ export default function Dashboard() {
 								<TabsTrigger value='all'>All</TabsTrigger>
 								<TabsTrigger value='active'>Active</TabsTrigger>
 								<TabsTrigger value='applied'>Applied</TabsTrigger>
-								<TabsTrigger value='applied'>Favorites</TabsTrigger>
 							</TabsList>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -160,10 +186,10 @@ export default function Dashboard() {
 															{job.location}
 														</TableCell>
 														<TableCell className='hidden md:table-cell'>
-															{job.created_at}
+															{formatDate(job.created_at)}
 														</TableCell>
 														<TableCell className='hidden md:table-cell'>
-															{job.updated_at}
+															{formatDate(job.updated_at)}
 														</TableCell>
 														<TableCell>
 															<DropdownMenu>
@@ -187,39 +213,6 @@ export default function Dashboard() {
 													</TableRow>
 												);
 											})}
-											{/* <TableRow>
-												<TableCell className='hidden md:table-cell'>
-													$499.99
-												</TableCell>
-												<TableCell className='hidden md:table-cell'>
-													25
-												</TableCell>
-												<TableCell className='hidden md:table-cell'>
-													2023-07-12 10:42 AM
-												</TableCell>
-												<TableCell className='hidden md:table-cell'>
-													2023-07-12 10:42 AM
-												</TableCell>
-												<TableCell>
-													<DropdownMenu>
-														<DropdownMenuTrigger asChild>
-															<Button
-																aria-haspopup='true'
-																size='icon'
-																variant='ghost'
-															>
-																<MoreHorizontal className='h-4 w-4' />
-																<span className='sr-only'>Toggle menu</span>
-															</Button>
-														</DropdownMenuTrigger>
-														<DropdownMenuContent align='end'>
-															<DropdownMenuLabel>Actions</DropdownMenuLabel>
-															<DropdownMenuItem>Favorite</DropdownMenuItem>
-															<DropdownMenuItem>Delete</DropdownMenuItem>
-														</DropdownMenuContent>
-													</DropdownMenu>
-												</TableCell>
-											</TableRow> */}
 										</TableBody>
 									</Table>
 								</CardContent>
@@ -232,6 +225,33 @@ export default function Dashboard() {
 							</Card>
 						</TabsContent>
 					</Tabs>
+					<Pagination>
+						<PaginationContent>
+							<PaginationItem>
+								<PaginationPrevious href='#' />
+							</PaginationItem>
+							<PaginationItem>
+								<PaginationLink href='#'>1</PaginationLink>
+							</PaginationItem>
+							<PaginationItem>
+								<PaginationLink
+									href='#'
+									isActive
+								>
+									2
+								</PaginationLink>
+							</PaginationItem>
+							<PaginationItem>
+								<PaginationLink href='#'>3</PaginationLink>
+							</PaginationItem>
+							<PaginationItem>
+								<PaginationEllipsis />
+							</PaginationItem>
+							<PaginationItem>
+								<PaginationNext href='#' />
+							</PaginationItem>
+						</PaginationContent>
+					</Pagination>
 				</main>
 			</div>
 		</div>
