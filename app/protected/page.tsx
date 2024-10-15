@@ -44,6 +44,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useEffect, useState } from 'react';
 
 export interface Job {
+	id: string;
 	created_at: string;
 	updated_at: string;
 	title: string;
@@ -58,15 +59,17 @@ export interface Job {
 export default function Dashboard() {
 	const supabase = createClient();
 	const [jobs, setJobs] = useState<Job[]>([]);
-	const [currentIndex, setCurrentIndex] = useState<number>(0);
+	const [numPages, setNumPages] = useState<number>();
+	const [currentPage, setCurrentPage] = useState<number>(1);
 
-	const getStartAndEndIndex = () => {
-		const itemsPerPage = 10;
-		const from = currentIndex * itemsPerPage;
-		const to = from + itemsPerPage;
+	const getPagination = (page: number, size: number) => {
+		const from = page ? page * size : 0;
+		const to = page ? from + size - 1 : size - 1;
+
+		return { from, to };
 	};
 
-	const fetchUserAndJobs = async () => {
+	const fetchUser = async () => {
 		const {
 			data: { user },
 		} = await supabase.auth.getUser();
@@ -74,10 +77,29 @@ export default function Dashboard() {
 		if (!user) {
 			return redirect('/sign-in');
 		}
+	};
+
+	const fetchNumPages = async () => {
 		let { data: jobs, error } = await supabase.from('jobs').select('*');
 		if (jobs) {
+			setNumPages(jobs.length / 10);
+		}
+		if (error) {
+			console.log(error);
+		}
+	};
+
+	const fetchJobsPage = async (page = 1) => {
+		setCurrentPage(page);
+		const { from, to } = getPagination(page, 10);
+		let { data: jobs, error } = await supabase
+			.from('jobs')
+			.select('*')
+			.range(from, to);
+		if (jobs) {
 			setJobs(jobs);
-		} else if (error) {
+		}
+		if (error) {
 			console.log(error);
 		}
 	};
@@ -93,7 +115,9 @@ export default function Dashboard() {
 	};
 
 	useEffect(() => {
-		fetchUserAndJobs();
+		fetchUser();
+		fetchNumPages();
+		fetchJobsPage();
 	}, []);
 
 	return (
@@ -170,7 +194,7 @@ export default function Dashboard() {
 										<TableBody>
 											{jobs.map((job) => {
 												return (
-													<TableRow>
+													<TableRow key={job.id}>
 														<TableCell className='font-medium'>
 															{job.title}
 														</TableCell>
@@ -228,27 +252,37 @@ export default function Dashboard() {
 					<Pagination>
 						<PaginationContent>
 							<PaginationItem>
-								<PaginationPrevious href='#' />
+								<PaginationPrevious
+									onClick={() => {
+										fetchJobsPage(currentPage - 1);
+										setCurrentPage((prev) => prev - 1);
+									}}
+								/>
 							</PaginationItem>
-							<PaginationItem>
-								<PaginationLink href='#'>1</PaginationLink>
+							{/* <PaginationItem>
+								<PaginationLink onClick={() => fetchJobs(1)}>1</PaginationLink>
 							</PaginationItem>
 							<PaginationItem>
 								<PaginationLink
-									href='#'
+									onClick={() => fetchJobs(2)}
 									isActive
 								>
 									2
 								</PaginationLink>
 							</PaginationItem>
 							<PaginationItem>
-								<PaginationLink href='#'>3</PaginationLink>
+								<PaginationLink onClick={() => fetchJobs(3)}>3</PaginationLink>
 							</PaginationItem>
 							<PaginationItem>
 								<PaginationEllipsis />
-							</PaginationItem>
+							</PaginationItem> */}
 							<PaginationItem>
-								<PaginationNext href='#' />
+								<PaginationNext
+									onClick={() => {
+										fetchJobsPage(currentPage + 1);
+										setCurrentPage((prev) => prev + 1);
+									}}
+								/>
 							</PaginationItem>
 						</PaginationContent>
 					</Pagination>
