@@ -2,7 +2,6 @@
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
 import { ListFilter, MoreHorizontal, Search } from 'lucide-react';
-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,15 +57,17 @@ export interface Job {
 
 export default function Dashboard() {
 	const supabase = createClient();
-	const [jobs, setJobs] = useState<Job[]>([]);
-	const [numPages, setNumPages] = useState<number>();
-	const [currentPage, setCurrentPage] = useState<number>(1);
+	const [allJobs, setAllJobs] = useState<Job[]>([]);
+	const [currentJobs, setCurrentJobs] = useState<Job[]>([]);
+	const [currentPage, setCurrentPage] = useState<number>(0);
+	const [numPages, setNumPages] = useState<number>(0);
+	const pageLimit = 10;
+	const pageNumbers = [];
 
-	const getPagination = (page: number, size: number) => {
-		const from = page ? page * size : 0;
-		const to = page ? from + size - 1 : size - 1;
-
-		return { from, to };
+	const changePage = (page: number) => {
+		const from = page ? page * pageLimit : 0;
+		const to = page ? from + pageLimit : pageLimit;
+		setCurrentJobs(allJobs.slice(from, to));
 	};
 
 	const fetchUser = async () => {
@@ -79,25 +80,12 @@ export default function Dashboard() {
 		}
 	};
 
-	const fetchNumPages = async () => {
+	const fetchJobs = async () => {
 		let { data: jobs, error } = await supabase.from('jobs').select('*');
 		if (jobs) {
-			setNumPages(jobs.length / 10);
-		}
-		if (error) {
-			console.log(error);
-		}
-	};
-
-	const fetchJobsPage = async (page = 1) => {
-		setCurrentPage(page);
-		const { from, to } = getPagination(page, 10);
-		let { data: jobs, error } = await supabase
-			.from('jobs')
-			.select('*')
-			.range(from, to);
-		if (jobs) {
-			setJobs(jobs);
+			setAllJobs(jobs);
+			setCurrentJobs(jobs.slice(0, pageLimit));
+			setNumPages(jobs.length / pageLimit);
 		}
 		if (error) {
 			console.log(error);
@@ -114,10 +102,38 @@ export default function Dashboard() {
 		return `${month}-${day}-${year}`;
 	};
 
+	for (let i = 0; i < numPages; i++) {
+		pageNumbers.push(
+			currentPage === i ? (
+				<PaginationItem key={i}>
+					<PaginationLink
+						isActive
+						onClick={() => {
+							setCurrentPage(i);
+							changePage(i);
+						}}
+					>
+						{i}
+					</PaginationLink>
+				</PaginationItem>
+			) : (
+				<PaginationItem key={i}>
+					<PaginationLink
+						onClick={() => {
+							setCurrentPage(i);
+							changePage(i);
+						}}
+					>
+						{i}
+					</PaginationLink>
+				</PaginationItem>
+			)
+		);
+	}
+
 	useEffect(() => {
 		fetchUser();
-		fetchNumPages();
-		fetchJobsPage();
+		fetchJobs();
 	}, []);
 
 	return (
@@ -192,7 +208,7 @@ export default function Dashboard() {
 											</TableRow>
 										</TableHeader>
 										<TableBody>
-											{jobs.map((job) => {
+											{currentJobs.map((job) => {
 												return (
 													<TableRow key={job.id}>
 														<TableCell className='font-medium'>
@@ -249,16 +265,19 @@ export default function Dashboard() {
 							</Card>
 						</TabsContent>
 					</Tabs>
-					<Pagination>
+					<Pagination className='max-w-screen flex-wrap'>
 						<PaginationContent>
 							<PaginationItem>
 								<PaginationPrevious
 									onClick={() => {
-										fetchJobsPage(currentPage - 1);
-										setCurrentPage((prev) => prev - 1);
+										if (currentPage > 0) {
+											changePage(currentPage - 1);
+											setCurrentPage((prev) => prev - 1);
+										}
 									}}
 								/>
 							</PaginationItem>
+							{pageNumbers}
 							{/* <PaginationItem>
 								<PaginationLink onClick={() => fetchJobs(1)}>1</PaginationLink>
 							</PaginationItem>
@@ -279,8 +298,10 @@ export default function Dashboard() {
 							<PaginationItem>
 								<PaginationNext
 									onClick={() => {
-										fetchJobsPage(currentPage + 1);
-										setCurrentPage((prev) => prev + 1);
+										if (currentPage < numPages - 1) {
+											changePage(currentPage + 1);
+											setCurrentPage((prev) => prev + 1);
+										}
 									}}
 								/>
 							</PaginationItem>
