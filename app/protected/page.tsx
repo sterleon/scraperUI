@@ -58,16 +58,47 @@ export interface Job {
 export default function Dashboard() {
 	const supabase = createClient();
 	const [allJobs, setAllJobs] = useState<Job[]>([]);
-	const [currentJobs, setCurrentJobs] = useState<Job[]>([]);
-	const [currentPage, setCurrentPage] = useState<number>(0);
+	const [currentJobsPage, setCurrentJobsPage] = useState<Job[]>([]);
+	const [currentPageNum, setCurrentPageNum] = useState<number>(0);
 	const [numPages, setNumPages] = useState<number>(0);
+	const [sortedByActive, setSortedByActive] = useState<boolean>(false);
+	const [sortedByApplied, setSortedByApplied] = useState<boolean>(false);
 	const pageLimit = 10;
 	const pageNumbers = [];
 
 	const changePage = (page: number) => {
 		const from = page ? page * pageLimit : 0;
 		const to = page ? from + pageLimit : pageLimit;
-		setCurrentJobs(allJobs.slice(from, to));
+		setCurrentJobsPage(allJobs.slice(from, to));
+	};
+
+	const sortByActive = () => {
+		const sorted = allJobs.filter((job) => job.applied === false);
+		setAllJobs(sorted);
+		setCurrentJobsPage(sorted.slice(0, pageLimit));
+		setNumPages(sorted.length / pageLimit);
+		setCurrentPageNum(0);
+	};
+
+	const sortByApplied = () => {
+		const sorted = allJobs.filter((job) => job.applied === true);
+		setAllJobs(sorted);
+		setCurrentJobsPage(sorted.slice(0, pageLimit));
+		setNumPages(sorted.length / pageLimit);
+		setCurrentPageNum(0);
+	};
+
+	const markApplied = async (id: string) => {
+		const { data, error } = await supabase
+			.from('jobs')
+			.update({ applied: true })
+			.eq('id', id)
+			.select();
+		if (data) {
+			console.log(data);
+		} else {
+			console.log(error);
+		}
 	};
 
 	const fetchUser = async () => {
@@ -84,8 +115,11 @@ export default function Dashboard() {
 		let { data: jobs, error } = await supabase.from('jobs').select('*');
 		if (jobs) {
 			setAllJobs(jobs);
-			setCurrentJobs(jobs.slice(0, pageLimit));
+			setCurrentJobsPage(jobs.slice(0, pageLimit));
 			setNumPages(jobs.length / pageLimit);
+			if (currentPageNum !== 0) {
+				setCurrentPageNum(0);
+			}
 		}
 		if (error) {
 			console.log(error);
@@ -104,12 +138,12 @@ export default function Dashboard() {
 
 	for (let i = 0; i < numPages; i++) {
 		pageNumbers.push(
-			currentPage === i ? (
+			currentPageNum === i ? (
 				<PaginationItem key={i}>
 					<PaginationLink
 						isActive
 						onClick={() => {
-							setCurrentPage(i);
+							setCurrentPageNum(i);
 							changePage(i);
 						}}
 					>
@@ -120,7 +154,7 @@ export default function Dashboard() {
 				<PaginationItem key={i}>
 					<PaginationLink
 						onClick={() => {
-							setCurrentPage(i);
+							setCurrentPageNum(i);
 							changePage(i);
 						}}
 					>
@@ -144,8 +178,34 @@ export default function Dashboard() {
 						<div className='flex items-center gap-2'>
 							<TabsList>
 								<TabsTrigger value='all'>All</TabsTrigger>
-								<TabsTrigger value='active'>Active</TabsTrigger>
-								<TabsTrigger value='applied'>Applied</TabsTrigger>
+								<TabsTrigger
+									value='all'
+									onClick={() => {
+										if (!sortedByActive) {
+											sortByActive();
+											setSortedByActive(true);
+										} else {
+											fetchJobs();
+											setSortedByActive(false);
+										}
+									}}
+								>
+									Active
+								</TabsTrigger>
+								<TabsTrigger
+									value='all'
+									onClick={() => {
+										if (!sortedByApplied) {
+											sortByApplied();
+											setSortedByApplied(true);
+										} else {
+											fetchJobs();
+											setSortedByApplied(false);
+										}
+									}}
+								>
+									Applied
+								</TabsTrigger>
 							</TabsList>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -208,10 +268,12 @@ export default function Dashboard() {
 											</TableRow>
 										</TableHeader>
 										<TableBody>
-											{currentJobs.map((job) => {
+											{currentJobsPage.map((job) => {
 												return (
 													<TableRow key={job.id}>
-														<TableCell className='font-medium'>
+														<TableCell
+															className={`font-medium ${job.applied ? `text-green-500` : ``}`}
+														>
 															{job.title}
 														</TableCell>
 														<TableCell>
@@ -245,6 +307,11 @@ export default function Dashboard() {
 																</DropdownMenuTrigger>
 																<DropdownMenuContent align='end'>
 																	<DropdownMenuLabel>Actions</DropdownMenuLabel>
+																	<DropdownMenuItem
+																		onClick={() => markApplied(job.id)}
+																	>
+																		Mark Applied
+																	</DropdownMenuItem>
 																	<DropdownMenuItem>Favorite</DropdownMenuItem>
 																	<DropdownMenuItem>Delete</DropdownMenuItem>
 																</DropdownMenuContent>
@@ -265,42 +332,25 @@ export default function Dashboard() {
 							</Card>
 						</TabsContent>
 					</Tabs>
-					<Pagination className='max-w-screen flex-wrap'>
-						<PaginationContent>
+					<Pagination>
+						<PaginationContent className='max-w-screen flex flex-wrap'>
 							<PaginationItem>
 								<PaginationPrevious
 									onClick={() => {
-										if (currentPage > 0) {
-											changePage(currentPage - 1);
-											setCurrentPage((prev) => prev - 1);
+										if (currentPageNum > 0) {
+											changePage(currentPageNum - 1);
+											setCurrentPageNum((prev) => prev - 1);
 										}
 									}}
 								/>
 							</PaginationItem>
 							{pageNumbers}
-							{/* <PaginationItem>
-								<PaginationLink onClick={() => fetchJobs(1)}>1</PaginationLink>
-							</PaginationItem>
-							<PaginationItem>
-								<PaginationLink
-									onClick={() => fetchJobs(2)}
-									isActive
-								>
-									2
-								</PaginationLink>
-							</PaginationItem>
-							<PaginationItem>
-								<PaginationLink onClick={() => fetchJobs(3)}>3</PaginationLink>
-							</PaginationItem>
-							<PaginationItem>
-								<PaginationEllipsis />
-							</PaginationItem> */}
 							<PaginationItem>
 								<PaginationNext
 									onClick={() => {
-										if (currentPage < numPages - 1) {
-											changePage(currentPage + 1);
-											setCurrentPage((prev) => prev + 1);
+										if (currentPageNum < numPages - 1) {
+											changePage(currentPageNum + 1);
+											setCurrentPageNum((prev) => prev + 1);
 										}
 									}}
 								/>
