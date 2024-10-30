@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Link from 'next/link';
 
-export default function Login({ searchParams }: { searchParams: Message }) {
-	return (
+export default async function Login(props: { searchParams: Promise<Message> }) {
+    const searchParams = await props.searchParams;
+    return (
 		<div className='w-screen h-screen flex justify-center items-center'>
 			<form className='flex flex-col w-1/2'>
 				<h1 className='text-2xl font-medium'>Sign in</h1>

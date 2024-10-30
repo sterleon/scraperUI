@@ -40,7 +40,7 @@ import {
 	TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useEffect, useState } from 'react';
+import { JSX, useEffect, useState } from 'react';
 
 export interface Job {
 	id: string;
@@ -57,35 +57,19 @@ export interface Job {
 
 export default function Dashboard() {
 	const supabase = createClient();
-	const [allJobs, setAllJobs] = useState<Job[]>([]);
 	const [currentJobsPage, setCurrentJobsPage] = useState<Job[]>([]);
 	const [currentPageNum, setCurrentPageNum] = useState<number>(0);
 	const [numPages, setNumPages] = useState<number>(0);
+	const [pageNumbers, setPageNumbers] = useState<JSX.Element[]>();
 	const [sortedByActive, setSortedByActive] = useState<boolean>(false);
 	const [sortedByApplied, setSortedByApplied] = useState<boolean>(false);
 	const pageLimit = 10;
-	const pageNumbers = [];
 
-	const changePage = (page: number) => {
+	const getPageRange = (page?: number) => {
 		const from = page ? page * pageLimit : 0;
-		const to = page ? from + pageLimit : pageLimit;
-		setCurrentJobsPage(allJobs.slice(from, to));
-	};
+		const to = page ? from + (pageLimit - 1) : pageLimit - 1;
 
-	const sortByActive = () => {
-		const sorted = allJobs.filter((job) => job.applied === false);
-		setAllJobs(sorted);
-		setCurrentJobsPage(sorted.slice(0, pageLimit));
-		setNumPages(sorted.length / pageLimit);
-		setCurrentPageNum(0);
-	};
-
-	const sortByApplied = () => {
-		const sorted = allJobs.filter((job) => job.applied === true);
-		setAllJobs(sorted);
-		setCurrentJobsPage(sorted.slice(0, pageLimit));
-		setNumPages(sorted.length / pageLimit);
-		setCurrentPageNum(0);
+		return { from, to };
 	};
 
 	const markApplied = async (id: string) => {
@@ -95,8 +79,9 @@ export default function Dashboard() {
 			.eq('id', id)
 			.select();
 		if (data) {
-			console.log(data);
-		} else {
+			fetchJobs(currentPageNum);
+		}
+		if (error) {
 			console.log(error);
 		}
 	};
@@ -111,21 +96,30 @@ export default function Dashboard() {
 		}
 	};
 
-	const fetchJobs = async () => {
-		let { data: jobs, error } = await supabase.from('jobs').select('*');
+	const fetchJobs = async (pageNum?: number) => {
+		const { from, to } = getPageRange(pageNum);
+		console.log(from, to);
+		let { data: jobs, error } = await supabase
+			.from('jobs')
+			.select('*')
+			.range(from, to);
 		if (jobs) {
-			setAllJobs(jobs);
-			setCurrentJobsPage(jobs.slice(0, pageLimit));
-			setNumPages(jobs.length / pageLimit);
-			if (currentPageNum !== 0) {
-				setCurrentPageNum(0);
-			}
+			setCurrentJobsPage(jobs);
 		}
 		if (error) {
 			console.log(error);
 		}
 	};
 
+	const getNumPages = async () => {
+		let { data: jobs, error } = await supabase.from('jobs').select('*');
+		if (jobs) {
+			setNumPages(jobs.length / pageLimit);
+		}
+		if (error) {
+			console.log(error);
+		}
+	};
 	const formatDate = (dateString: string): string => {
 		const date = new Date(dateString);
 
@@ -136,39 +130,44 @@ export default function Dashboard() {
 		return `${month}-${day}-${year}`;
 	};
 
-	for (let i = 0; i < numPages; i++) {
-		pageNumbers.push(
-			currentPageNum === i ? (
-				<PaginationItem key={i}>
-					<PaginationLink
-						isActive
-						onClick={() => {
-							setCurrentPageNum(i);
-							changePage(i);
-						}}
-					>
-						{i}
-					</PaginationLink>
-				</PaginationItem>
-			) : (
-				<PaginationItem key={i}>
-					<PaginationLink
-						onClick={() => {
-							setCurrentPageNum(i);
-							changePage(i);
-						}}
-					>
-						{i}
-					</PaginationLink>
-				</PaginationItem>
-			)
-		);
-	}
-
 	useEffect(() => {
 		fetchUser();
+		getNumPages();
 		fetchJobs();
 	}, []);
+
+	useEffect(() => {
+		const pages = [];
+		for (let i = 0; i < numPages; i++) {
+			pages.push(
+				currentPageNum === i ? (
+					<PaginationItem key={i}>
+						<PaginationLink
+							isActive
+							onClick={() => {
+								setCurrentPageNum(i);
+								fetchJobs(i);
+							}}
+						>
+							{i}
+						</PaginationLink>
+					</PaginationItem>
+				) : (
+					<PaginationItem key={i}>
+						<PaginationLink
+							onClick={() => {
+								setCurrentPageNum(i);
+								fetchJobs(i);
+							}}
+						>
+							{i}
+						</PaginationLink>
+					</PaginationItem>
+				)
+			);
+		}
+		setPageNumbers(pages);
+	}, [numPages, currentPageNum]);
 
 	return (
 		<div className='flex min-h-screen w-full flex-col bg-muted/40'>
@@ -178,34 +177,8 @@ export default function Dashboard() {
 						<div className='flex items-center gap-2'>
 							<TabsList>
 								<TabsTrigger value='all'>All</TabsTrigger>
-								<TabsTrigger
-									value='all'
-									onClick={() => {
-										if (!sortedByActive) {
-											sortByActive();
-											setSortedByActive(true);
-										} else {
-											fetchJobs();
-											setSortedByActive(false);
-										}
-									}}
-								>
-									Active
-								</TabsTrigger>
-								<TabsTrigger
-									value='all'
-									onClick={() => {
-										if (!sortedByApplied) {
-											sortByApplied();
-											setSortedByApplied(true);
-										} else {
-											fetchJobs();
-											setSortedByApplied(false);
-										}
-									}}
-								>
-									Applied
-								</TabsTrigger>
+								<TabsTrigger value='active'>Active</TabsTrigger>
+								<TabsTrigger value='applied'>Applied</TabsTrigger>
 							</TabsList>
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
@@ -338,7 +311,7 @@ export default function Dashboard() {
 								<PaginationPrevious
 									onClick={() => {
 										if (currentPageNum > 0) {
-											changePage(currentPageNum - 1);
+											fetchJobs(currentPageNum - 1);
 											setCurrentPageNum((prev) => prev - 1);
 										}
 									}}
@@ -349,7 +322,7 @@ export default function Dashboard() {
 								<PaginationNext
 									onClick={() => {
 										if (currentPageNum < numPages - 1) {
-											changePage(currentPageNum + 1);
+											fetchJobs(currentPageNum + 1);
 											setCurrentPageNum((prev) => prev + 1);
 										}
 									}}
