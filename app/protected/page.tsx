@@ -41,6 +41,8 @@ import {
 import { JSX, useEffect, useState } from 'react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
+import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
+
 export interface Job {
 	id: string;
 	created_at: string;
@@ -54,7 +56,9 @@ export interface Job {
 	location: string;
 }
 
+type Query = PostgrestFilterBuilder<any, any, any[], 'jobs', unknown>;
 type SortType = 'all' | 'active' | 'applied';
+type FilterType = 'date' | 'local' | 'remote';
 
 export default function Dashboard() {
 	const supabase = createClient();
@@ -63,6 +67,8 @@ export default function Dashboard() {
 	const [numPages, setNumPages] = useState<number>(0);
 	const [pageNumbers, setPageNumbers] = useState<JSX.Element[]>();
 	const [sortedBy, setSortedBy] = useState<SortType>('all');
+	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
+
 	const pageLimit = 10;
 
 	const getPageRange = (page?: number) => {
@@ -86,6 +92,28 @@ export default function Dashboard() {
 		}
 	};
 
+	const buildQuery = (baseQuery: Query) => {
+		// Apply sorting
+		if (sortedBy === 'active') {
+			baseQuery = baseQuery.eq('applied', false);
+		} else if (sortedBy === 'applied') {
+			baseQuery = baseQuery.eq('applied', true);
+		}
+
+		// Apply filtering
+		if (filteredBy.includes('local') && !filteredBy.includes('remote')) {
+			baseQuery = baseQuery.eq('is_local', true);
+		} else if (filteredBy.includes('remote') && !filteredBy.includes('local')) {
+			baseQuery = baseQuery.eq('is_local', false);
+		}
+
+		if (filteredBy.includes('date')) {
+			baseQuery = baseQuery.order('created_at', { ascending: false });
+		}
+
+		return baseQuery;
+	};
+
 	const fetchUser = async () => {
 		const {
 			data: { user },
@@ -99,75 +127,28 @@ export default function Dashboard() {
 	const fetchJobs = async (pageNum?: number) => {
 		const { from, to } = getPageRange(pageNum);
 
-		if (sortedBy === 'all') {
-			let { data: jobs, error } = await supabase
-				.from('jobs')
-				.select('*')
-				.range(from, to);
-			if (jobs) {
-				setCurrentJobsPage(jobs);
-			}
-			if (error) {
-				console.log(error);
-			}
-		} else if (sortedBy === 'active') {
-			let { data: jobs, error } = await supabase
-				.from('jobs')
-				.select('*')
-				.eq('applied', false)
-				.range(from, to);
-			if (jobs) {
-				setCurrentJobsPage(jobs);
-			}
-			if (error) {
-				console.log(error);
-			}
-		} else if (sortedBy === 'applied') {
-			let { data: jobs, error } = await supabase
-				.from('jobs')
-				.select('*')
-				.eq('applied', true)
-				.range(from, to);
-			if (jobs) {
-				setCurrentJobsPage(jobs);
-			}
-			if (error) {
-				console.log(error);
-			}
+		const baseQuery = supabase.from('jobs').select('*').range(from, to);
+		const query = buildQuery(baseQuery);
+
+		let { data: jobs, error } = await query;
+		if (jobs) {
+			setCurrentJobsPage(jobs);
+		}
+		if (error) {
+			console.log(error);
 		}
 	};
 
 	const getNumPages = async () => {
-		if (sortedBy === 'all') {
-			let { data: jobs, error } = await supabase.from('jobs').select('*');
-			if (jobs) {
-				setNumPages(jobs.length / pageLimit);
-			}
-			if (error) {
-				console.log(error);
-			}
-		} else if (sortedBy === 'active') {
-			let { data: jobs, error } = await supabase
-				.from('jobs')
-				.select('*')
-				.eq('applied', false);
-			if (jobs) {
-				setNumPages(jobs.length / pageLimit);
-			}
-			if (error) {
-				console.log(error);
-			}
-		} else if (sortedBy === 'applied') {
-			let { data: jobs, error } = await supabase
-				.from('jobs')
-				.select('*')
-				.eq('applied', true);
-			if (jobs) {
-				setNumPages(jobs.length / pageLimit);
-			}
-			if (error) {
-				console.log(error);
-			}
+		const baseQuery = supabase.from('jobs').select('*');
+		const query = buildQuery(baseQuery);
+
+		let { data: jobs, error } = await query;
+		if (jobs) {
+			setNumPages(jobs.length / pageLimit);
+		}
+		if (error) {
+			console.log(error);
 		}
 	};
 	const formatDate = (dateString: string): string => {
@@ -221,11 +202,11 @@ export default function Dashboard() {
 		setPageNumbers(pages);
 	}, [numPages, currentPageNum]);
 
-	// Run this useEffect when the Applied or Active filters are toggled
+	// Run this useEffect when sorting or filtering is toggled
 	useEffect(() => {
 		getNumPages();
 		fetchJobs();
-	}, [sortedBy]);
+	}, [sortedBy, filteredBy]);
 
 	return (
 		<div className='flex min-h-screen w-full flex-col bg-muted/40'>
@@ -274,11 +255,45 @@ export default function Dashboard() {
 							<DropdownMenuContent align='end'>
 								<DropdownMenuLabel>Filter by</DropdownMenuLabel>
 								<DropdownMenuSeparator />
-								<DropdownMenuCheckboxItem checked>
+								<DropdownMenuCheckboxItem
+									className='cursor-pointer'
+									checked={filteredBy.includes('date') ? true : false}
+									onClick={() => {
+										setFilteredBy((prev) =>
+											prev.includes('date')
+												? prev.filter((filter) => filter !== 'date')
+												: [...prev, 'date']
+										);
+									}}
+								>
 									Date
 								</DropdownMenuCheckboxItem>
-								<DropdownMenuCheckboxItem>Location</DropdownMenuCheckboxItem>
-								<DropdownMenuCheckboxItem>Archived</DropdownMenuCheckboxItem>
+								<DropdownMenuCheckboxItem
+									className='cursor-pointer'
+									checked={filteredBy.includes('local') ? true : false}
+									onClick={() => {
+										setFilteredBy((prev) =>
+											prev.includes('local')
+												? prev.filter((filter) => filter !== 'local')
+												: [...prev, 'local']
+										);
+									}}
+								>
+									Local
+								</DropdownMenuCheckboxItem>
+								<DropdownMenuCheckboxItem
+									className='cursor-pointer'
+									checked={filteredBy.includes('remote') ? true : false}
+									onClick={() => {
+										setFilteredBy((prev) =>
+											prev.includes('remote')
+												? prev.filter((filter) => filter !== 'remote')
+												: [...prev, 'remote']
+										);
+									}}
+								>
+									Remote
+								</DropdownMenuCheckboxItem>
 							</DropdownMenuContent>
 						</DropdownMenu>
 
@@ -334,7 +349,12 @@ export default function Dashboard() {
 																Applied
 															</Badge>
 														) : (
-															<Badge variant='outline'>Active</Badge>
+															<Badge
+																variant='outline'
+																className='bg-blue-500'
+															>
+																Active
+															</Badge>
 														)}
 													</TableCell>
 													<TableCell className='hidden md:table-cell'>
