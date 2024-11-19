@@ -1,8 +1,9 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies, type UnsafeUnwrappedCookies } from 'next/headers';
 
-export const createClient = () => {
-	const cookieStore = cookies() as unknown as UnsafeUnwrappedCookies;
+export const createClient = async () => {
+	// Await the cookies to resolve the promise
+	const cookieStore = (await cookies()) as unknown as UnsafeUnwrappedCookies;
 
 	return createServerClient(
 		process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,9 +19,7 @@ export const createClient = () => {
 							cookieStore.set(name, value, options);
 						});
 					} catch (error) {
-						// The `set` method was called from a Server Component.
-						// This can be ignored if you have middleware refreshing
-						// user sessions.
+						// Ignore if called from a Server Component
 					}
 				},
 			},

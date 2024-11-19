@@ -38,7 +38,7 @@ import {
 	TableHeader,
 	TableRow,
 } from '@/components/ui/table';
-import { JSX, useEffect, useState } from 'react';
+import { JSX, useEffect, useRef, useState } from 'react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
@@ -68,7 +68,9 @@ export default function Dashboard() {
 	const [pageNumbers, setPageNumbers] = useState<JSX.Element[]>();
 	const [sortedBy, setSortedBy] = useState<SortType>('all');
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
+	const [searchQuery, SetSearchQuery] = useState<string>('');
 
+	const searchRef = useRef<HTMLInputElement>(null);
 	const pageLimit = 10;
 
 	const getPageRange = (page?: number) => {
@@ -107,6 +109,13 @@ export default function Dashboard() {
 			baseQuery = baseQuery.eq('is_local', false);
 		}
 
+		// Apply search query
+		if (searchQuery) {
+			baseQuery = baseQuery.or(
+				`title.ilike.%${searchQuery}%, company.ilike.%${searchQuery}%, location.ilike.%${searchQuery}%`
+			);
+		}
+
 		if (filteredBy.includes('date')) {
 			baseQuery = baseQuery.order('created_at', { ascending: false });
 		}
@@ -124,8 +133,22 @@ export default function Dashboard() {
 		}
 	};
 
+	const getNumPages = async () => {
+		const baseQuery = supabase.from('jobs').select('*');
+		const query = buildQuery(baseQuery);
+
+		let { data: jobs, error } = await query;
+		if (jobs) {
+			setNumPages(jobs.length / pageLimit);
+		}
+		if (error) {
+			console.log(error);
+		}
+	};
+
 	const fetchJobs = async (pageNum?: number) => {
 		const { from, to } = getPageRange(pageNum);
+		getNumPages();
 
 		const baseQuery = supabase.from('jobs').select('*').range(from, to);
 		const query = buildQuery(baseQuery);
@@ -139,18 +162,6 @@ export default function Dashboard() {
 		}
 	};
 
-	const getNumPages = async () => {
-		const baseQuery = supabase.from('jobs').select('*');
-		const query = buildQuery(baseQuery);
-
-		let { data: jobs, error } = await query;
-		if (jobs) {
-			setNumPages(jobs.length / pageLimit);
-		}
-		if (error) {
-			console.log(error);
-		}
-	};
 	const formatDate = (dateString: string): string => {
 		const date = new Date(dateString);
 
@@ -161,13 +172,7 @@ export default function Dashboard() {
 		return `${month}-${day}-${year}`;
 	};
 
-	useEffect(() => {
-		fetchUser();
-		getNumPages();
-		fetchJobs();
-	}, []);
-
-	useEffect(() => {
+	const setPages = () => {
 		const pages = [];
 		for (let i = 0; i < numPages; i++) {
 			pages.push(
@@ -200,13 +205,19 @@ export default function Dashboard() {
 			);
 		}
 		setPageNumbers(pages);
+	};
+
+	useEffect(() => {
+		fetchUser();
+	}, []);
+
+	useEffect(() => {
+		setPages();
 	}, [numPages, currentPageNum]);
 
-	// Run this useEffect when sorting or filtering is toggled
 	useEffect(() => {
-		getNumPages();
 		fetchJobs();
-	}, [sortedBy, filteredBy]);
+	}, [sortedBy, filteredBy, searchQuery]);
 
 	return (
 		<div className='flex min-h-screen w-full flex-col bg-muted/40'>
@@ -303,6 +314,10 @@ export default function Dashboard() {
 								type='search'
 								placeholder='Search...'
 								className='w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[336px]'
+								ref={searchRef}
+								onChange={() => {
+									SetSearchQuery(searchRef.current?.value || '');
+								}}
 							/>
 						</div>
 					</div>
