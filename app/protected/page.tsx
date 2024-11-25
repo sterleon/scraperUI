@@ -42,6 +42,7 @@ import { JSX, useEffect, useRef, useState } from 'react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
+import { Checkbox } from '@/components/ui/checkbox';
 
 export interface Job {
 	id: string;
@@ -69,6 +70,9 @@ export default function Dashboard() {
 	const [sortedBy, setSortedBy] = useState<SortType>('all');
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
 	const [searchQuery, SetSearchQuery] = useState<string>('');
+	const [selected, setSelected] = useState<string[]>([]);
+	const [deleteSelectedModal, setDeleteSelectedModal] =
+		useState<boolean>(false);
 
 	const searchRef = useRef<HTMLInputElement>(null);
 	const pageLimit = 10;
@@ -89,6 +93,13 @@ export default function Dashboard() {
 		if (data) {
 			fetchJobs(currentPageNum);
 		}
+		if (error) {
+			console.log(error);
+		}
+	};
+
+	const deleteSelected = async () => {
+		const { error } = await supabase.from('jobs').delete().in('id', selected);
 		if (error) {
 			console.log(error);
 		}
@@ -234,6 +245,7 @@ export default function Dashboard() {
 									sortedBy === 'active'
 										? setSortedBy('all')
 										: setSortedBy('active');
+									setSelected([]);
 								}}
 							>
 								Active
@@ -244,10 +256,31 @@ export default function Dashboard() {
 									sortedBy === 'applied'
 										? setSortedBy('all')
 										: setSortedBy('applied');
+									setSelected([]);
 								}}
 							>
 								Applied
 							</ToggleGroupItem>
+							{selected.length > 0 ? (
+								<div className='flex gap-1'>
+									<Button
+										variant='outline'
+										className='hover:bg-red-600'
+										onClick={() => {}}
+									>
+										Delete Selected
+									</Button>
+									<Button
+										variant='outline'
+										className='hover:bg-green-600'
+										onClick={() => {}}
+									>
+										Mark Applied
+									</Button>
+								</div>
+							) : (
+								''
+							)}
 						</ToggleGroup>
 
 						<DropdownMenu>
@@ -352,8 +385,19 @@ export default function Dashboard() {
 										{currentJobsPage.map((job) => {
 											return (
 												<TableRow key={job.id}>
-													<TableCell className='font-medium'>
-														{job.title}
+													<TableCell>
+														<div className='flex items-center gap-2'>
+															<Checkbox
+																onCheckedChange={(checked) => {
+																	setSelected((prev) =>
+																		checked
+																			? [...prev, job.id]
+																			: selected.filter((id) => id !== job.id)
+																	);
+																}}
+															/>
+															{job.title}
+														</div>
 													</TableCell>
 													<TableCell>
 														{job.applied ? (
@@ -403,7 +447,6 @@ export default function Dashboard() {
 																>
 																	Mark Applied
 																</DropdownMenuItem>
-																<DropdownMenuItem>Favorite</DropdownMenuItem>
 																<DropdownMenuItem>Delete</DropdownMenuItem>
 															</DropdownMenuContent>
 														</DropdownMenu>
