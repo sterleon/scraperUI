@@ -71,8 +71,7 @@ export default function Dashboard() {
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
 	const [searchQuery, SetSearchQuery] = useState<string>('');
 	const [selected, setSelected] = useState<string[]>([]);
-	const [deleteSelectedModal, setDeleteSelectedModal] =
-		useState<boolean>(false);
+	const [boxesChecked, setBoxesChecked] = useState<boolean>(true);
 
 	const searchRef = useRef<HTMLInputElement>(null);
 	const pageLimit = 10;
@@ -84,7 +83,7 @@ export default function Dashboard() {
 		return { from, to };
 	};
 
-	const markApplied = async (id: string) => {
+	const markSingleApplied = async (id: string) => {
 		const { data, error } = await supabase
 			.from('jobs')
 			.update({ applied: true })
@@ -98,11 +97,30 @@ export default function Dashboard() {
 		}
 	};
 
+	const markSelectedApplied = async () => {
+		const { error } = await supabase
+			.from('jobs')
+			.update({ applied: true })
+			.in('id', selected);
+		if (!error) {
+			fetchJobs(currentPageNum);
+			setSelected([]);
+		} else console.log(error);
+	};
+
+	const deleteSingle = async (id: string) => {
+		const { error } = await supabase.from('jobs').delete().eq('id', id);
+		if (!error) {
+			fetchJobs(currentPageNum);
+		} else console.log(error);
+	};
+
 	const deleteSelected = async () => {
 		const { error } = await supabase.from('jobs').delete().in('id', selected);
-		if (error) {
-			console.log(error);
-		}
+		if (!error) {
+			fetchJobs(currentPageNum);
+			setSelected([]);
+		} else console.log(error);
 	};
 
 	const buildQuery = (baseQuery: Query) => {
@@ -233,7 +251,7 @@ export default function Dashboard() {
 	return (
 		<div className='flex min-h-screen w-full flex-col bg-muted/40'>
 			<div className='flex flex-col sm:gap-4 sm:py-4'>
-				<main className='grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8'>
+				<main className='grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0'>
 					<div className='flex items-center gap-2'>
 						<ToggleGroup
 							type='single'
@@ -261,26 +279,6 @@ export default function Dashboard() {
 							>
 								Applied
 							</ToggleGroupItem>
-							{selected.length > 0 ? (
-								<div className='flex gap-1'>
-									<Button
-										variant='outline'
-										className='hover:bg-red-600'
-										onClick={() => {}}
-									>
-										Delete Selected
-									</Button>
-									<Button
-										variant='outline'
-										className='hover:bg-green-600'
-										onClick={() => {}}
-									>
-										Mark Applied
-									</Button>
-								</div>
-							) : (
-								''
-							)}
 						</ToggleGroup>
 
 						<DropdownMenu>
@@ -308,6 +306,7 @@ export default function Dashboard() {
 												? prev.filter((filter) => filter !== 'date')
 												: [...prev, 'date']
 										);
+										setSelected([]);
 									}}
 								>
 									Date
@@ -321,6 +320,7 @@ export default function Dashboard() {
 												? prev.filter((filter) => filter !== 'local')
 												: [...prev, 'local']
 										);
+										setSelected([]);
 									}}
 								>
 									Local
@@ -334,6 +334,7 @@ export default function Dashboard() {
 												? prev.filter((filter) => filter !== 'remote')
 												: [...prev, 'remote']
 										);
+										setSelected([]);
 									}}
 								>
 									Remote
@@ -354,6 +355,30 @@ export default function Dashboard() {
 							/>
 						</div>
 					</div>
+					{selected.length > 0 ? (
+						<div className='flex gap-1'>
+							<Button
+								variant='outline'
+								className='hover:bg-red-600'
+								onClick={() => {
+									deleteSelected();
+								}}
+							>
+								Delete Selected
+							</Button>
+							<Button
+								variant='outline'
+								className='hover:bg-green-600'
+								onClick={() => {
+									markSelectedApplied();
+								}}
+							>
+								Mark Applied
+							</Button>
+						</div>
+					) : (
+						''
+					)}
 					<div>
 						<Card x-chunk='dashboard-06-chunk-0'>
 							<CardHeader>
@@ -396,7 +421,13 @@ export default function Dashboard() {
 																	);
 																}}
 															/>
-															{job.title}
+															<a
+																className='hover:underline'
+																href={job.url}
+																target='_blank'
+															>
+																{job.title}
+															</a>
 														</div>
 													</TableCell>
 													<TableCell>
@@ -443,11 +474,17 @@ export default function Dashboard() {
 															<DropdownMenuContent align='end'>
 																<DropdownMenuLabel>Actions</DropdownMenuLabel>
 																<DropdownMenuItem
-																	onClick={() => markApplied(job.id)}
+																	className='cursor-pointer'
+																	onClick={() => markSingleApplied(job.id)}
 																>
 																	Mark Applied
 																</DropdownMenuItem>
-																<DropdownMenuItem>Delete</DropdownMenuItem>
+																<DropdownMenuItem
+																	className='cursor-pointer'
+																	onClick={() => deleteSingle(job.id)}
+																>
+																	Delete
+																</DropdownMenuItem>
 															</DropdownMenuContent>
 														</DropdownMenu>
 													</TableCell>
