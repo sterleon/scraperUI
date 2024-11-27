@@ -71,7 +71,6 @@ export default function Dashboard() {
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
 	const [searchQuery, SetSearchQuery] = useState<string>('');
 	const [selected, setSelected] = useState<string[]>([]);
-	const [boxesChecked, setBoxesChecked] = useState<boolean>(true);
 
 	const searchRef = useRef<HTMLInputElement>(null);
 	const pageLimit = 10;
@@ -176,8 +175,8 @@ export default function Dashboard() {
 	};
 
 	const fetchJobs = async (pageNum?: number) => {
-		const { from, to } = getPageRange(pageNum);
 		getNumPages();
+		const { from, to } = getPageRange(pageNum);
 
 		const baseQuery = supabase.from('jobs').select('*').range(from, to);
 		const query = buildQuery(baseQuery);
@@ -212,10 +211,9 @@ export default function Dashboard() {
 							className='cursor-pointer'
 							onClick={() => {
 								setCurrentPageNum(i);
-								fetchJobs(i);
 							}}
 						>
-							{i}
+							{i + 1}
 						</PaginationLink>
 					</PaginationItem>
 				) : (
@@ -224,10 +222,9 @@ export default function Dashboard() {
 							className='cursor-pointer'
 							onClick={() => {
 								setCurrentPageNum(i);
-								fetchJobs(i);
 							}}
 						>
-							{i}
+							{i + 1}
 						</PaginationLink>
 					</PaginationItem>
 				)
@@ -243,6 +240,10 @@ export default function Dashboard() {
 	useEffect(() => {
 		setPages();
 	}, [numPages, currentPageNum]);
+
+	useEffect(() => {
+		fetchJobs(currentPageNum);
+	}, [currentPageNum]);
 
 	useEffect(() => {
 		fetchJobs();
@@ -508,7 +509,6 @@ export default function Dashboard() {
 									className='cursor-pointer'
 									onClick={() => {
 										if (currentPageNum > 0) {
-											fetchJobs(currentPageNum - 1);
 											setCurrentPageNum((prev) => prev - 1);
 										}
 									}}
@@ -520,7 +520,6 @@ export default function Dashboard() {
 									className='cursor-pointer'
 									onClick={() => {
 										if (currentPageNum < numPages - 1) {
-											fetchJobs(currentPageNum + 1);
 											setCurrentPageNum((prev) => prev + 1);
 										}
 									}}
