@@ -1,7 +1,7 @@
 'use client';
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
-import { ListFilter, MoreHorizontal, Search } from 'lucide-react';
+import { CheckCheck, ListFilter, MoreHorizontal, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,6 +43,18 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 import type { PostgrestFilterBuilder } from '@supabase/postgrest-js';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export interface Job {
 	id: string;
@@ -71,6 +83,12 @@ export default function Dashboard() {
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
 	const [searchQuery, SetSearchQuery] = useState<string>('');
 	const [selected, setSelected] = useState<string[]>([]);
+	const [alertDialog, setAlertDialog] = useState<string | null>(null);
+	const [numJobs, setNumJobs] = useState<number | null>(null);
+	const [currentJobRange, setCurrentJobRange] = useState({
+		from: 1,
+		to: 10,
+	});
 
 	const searchRef = useRef<HTMLInputElement>(null);
 	const pageLimit = 10;
@@ -167,6 +185,7 @@ export default function Dashboard() {
 
 		let { data: jobs, error } = await query;
 		if (jobs) {
+			setNumJobs(jobs.length);
 			setNumPages(jobs.length / pageLimit);
 		}
 		if (error) {
@@ -177,6 +196,17 @@ export default function Dashboard() {
 	const fetchJobs = async (pageNum?: number) => {
 		getNumPages();
 		const { from, to } = getPageRange(pageNum);
+		if (from && to) {
+			setCurrentJobRange({
+				from: from + 1,
+				to: to + 1,
+			});
+		} else {
+			setCurrentJobRange({
+				from: 1,
+				to: 10,
+			});
+		}
 
 		const baseQuery = supabase.from('jobs').select('*').range(from, to);
 		const query = buildQuery(baseQuery);
@@ -248,6 +278,17 @@ export default function Dashboard() {
 	useEffect(() => {
 		fetchJobs();
 	}, [sortedBy, filteredBy, searchQuery]);
+
+	useEffect(() => {
+		setTimeout(() => {
+			setAlertDialog(null);
+		}, 3000);
+	}, [alertDialog]);
+
+	// Reset active page button to 1 when filtering applied
+	useEffect(() => {
+		setCurrentPageNum(0);
+	}, [selected]);
 
 	return (
 		<div className='flex min-h-screen w-full flex-col bg-muted/40'>
@@ -356,22 +397,56 @@ export default function Dashboard() {
 							/>
 						</div>
 					</div>
+					{alertDialog ? (
+						<Alert className='border-green-600 bg-muted/10'>
+							<CheckCheck className='h-4 w-4 stroke-green-600' />
+							<AlertTitle className='text-green-600'>Done</AlertTitle>
+							<AlertDescription className='text-green-600'>
+								{alertDialog}
+							</AlertDescription>
+						</Alert>
+					) : (
+						''
+					)}
 					{selected.length > 0 ? (
 						<div className='flex gap-1'>
-							<Button
-								variant='outline'
-								className='hover:bg-red-600'
-								onClick={() => {
-									deleteSelected();
-								}}
-							>
-								Delete Selected
-							</Button>
+							<AlertDialog>
+								<AlertDialogTrigger asChild>
+									<Button
+										variant='outline'
+										className='hover:bg-red-600'
+									>
+										Delete Selected
+									</Button>
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+										<AlertDialogDescription>
+											This action cannot be undone. This will permanently delete
+											the selected jobs.
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={() => {
+												deleteSelected();
+												setAlertDialog('Jobs deleted');
+											}}
+										>
+											Delete
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+
 							<Button
 								variant='outline'
 								className='hover:bg-green-600'
 								onClick={() => {
 									markSelectedApplied();
+									setAlertDialog('Jobs marked as applied');
 								}}
 							>
 								Mark Applied
@@ -383,8 +458,8 @@ export default function Dashboard() {
 					<div>
 						<Card x-chunk='dashboard-06-chunk-0'>
 							<CardHeader>
-								<CardTitle>Job Listings</CardTitle>
-								<CardDescription>Manage your listings</CardDescription>
+								<CardTitle>Jobs</CardTitle>
+								<CardDescription>Manage your jobs here</CardDescription>
 							</CardHeader>
 							<CardContent>
 								<Table>
@@ -476,13 +551,19 @@ export default function Dashboard() {
 																<DropdownMenuLabel>Actions</DropdownMenuLabel>
 																<DropdownMenuItem
 																	className='cursor-pointer'
-																	onClick={() => markSingleApplied(job.id)}
+																	onClick={() => {
+																		markSingleApplied(job.id);
+																		setAlertDialog('Job marked applied');
+																	}}
 																>
 																	Mark Applied
 																</DropdownMenuItem>
 																<DropdownMenuItem
 																	className='cursor-pointer'
-																	onClick={() => deleteSingle(job.id)}
+																	onClick={() => {
+																		deleteSingle(job.id);
+																		setAlertDialog('Job deleted');
+																	}}
 																>
 																	Delete
 																</DropdownMenuItem>
@@ -497,7 +578,11 @@ export default function Dashboard() {
 							</CardContent>
 							<CardFooter>
 								<div className='text-xs text-muted-foreground'>
-									Showing <strong>1-10</strong> of <strong>32</strong> products
+									Showing{' '}
+									<strong>
+										{currentJobRange.from}-{currentJobRange.to}
+									</strong>{' '}
+									of <strong>{numJobs}</strong> jobs
 								</div>
 							</CardFooter>
 						</Card>
