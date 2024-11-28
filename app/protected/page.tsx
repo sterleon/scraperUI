@@ -1,7 +1,13 @@
 'use client';
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
-import { CheckCheck, ListFilter, MoreHorizontal, Search } from 'lucide-react';
+import {
+	AlertCircle,
+	CheckCheck,
+	ListFilter,
+	MoreHorizontal,
+	Search,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -75,15 +81,16 @@ type FilterType = 'date' | 'local' | 'remote';
 
 export default function Dashboard() {
 	const supabase = createClient();
-	const [currentJobsPage, setCurrentJobsPage] = useState<Job[]>([]);
+	const [currentJobs, setCurrentJobs] = useState<Job[]>([]);
 	const [currentPageNum, setCurrentPageNum] = useState<number>(0);
 	const [numPages, setNumPages] = useState<number>(0);
 	const [pageNumbers, setPageNumbers] = useState<JSX.Element[]>();
 	const [sortedBy, setSortedBy] = useState<SortType>('all');
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
 	const [searchQuery, SetSearchQuery] = useState<string>('');
-	const [selected, setSelected] = useState<string[]>([]);
+	const [selectedJobs, setSelectedJobs] = useState<Job[]>([]);
 	const [alertDialog, setAlertDialog] = useState<string | null>(null);
+	const [alertErrorDialog, setAlertErrorDialog] = useState<string | null>(null);
 	const [numJobs, setNumJobs] = useState<number | null>(null);
 	const [currentJobRange, setCurrentJobRange] = useState({
 		from: 1,
@@ -100,43 +107,61 @@ export default function Dashboard() {
 		return { from, to };
 	};
 
-	const markSingleApplied = async (id: string) => {
-		const { data, error } = await supabase
-			.from('jobs')
-			.update({ applied: true })
-			.eq('id', id)
-			.select();
-		if (data) {
-			fetchJobs(currentPageNum);
-		}
-		if (error) {
-			console.log(error);
+	const markSingleApplied = async (job: Job, apply: boolean) => {
+		if ((job.applied && !apply) || (!job.applied && apply)) {
+			const { data, error } = await supabase
+				.from('jobs')
+				.update({ applied: apply ? true : false })
+				.eq('id', job.id)
+				.select();
+			if (data) {
+				fetchJobs(currentPageNum);
+				setAlertDialog(apply ? 'Job marked applied' : 'Job marked active');
+			}
+			if (error) {
+				console.log(error);
+			}
+		} else {
+			if (job.applied && apply) {
+				setAlertErrorDialog('Job already applied');
+			} else setAlertErrorDialog('Job already active');
 		}
 	};
-
-	const markSelectedApplied = async () => {
+	const markSelectedJobsApplied = async (apply: boolean) => {
 		const { error } = await supabase
 			.from('jobs')
-			.update({ applied: true })
-			.in('id', selected);
+			.update({ applied: apply ? true : false })
+			.in(
+				'id',
+				selectedJobs.map((job) => job.id)
+			);
 		if (!error) {
 			fetchJobs(currentPageNum);
-			setSelected([]);
+			setAlertDialog(
+				apply ? 'Jobs marked as applied' : 'Jobs marked as active'
+			);
 		} else console.log(error);
 	};
 
-	const deleteSingle = async (id: string) => {
-		const { error } = await supabase.from('jobs').delete().eq('id', id);
+	const deleteSingle = async (job: Job) => {
+		const { error } = await supabase.from('jobs').delete().eq('id', job.id);
 		if (!error) {
 			fetchJobs(currentPageNum);
+			setAlertDialog('Job deleted');
 		} else console.log(error);
 	};
 
 	const deleteSelected = async () => {
-		const { error } = await supabase.from('jobs').delete().in('id', selected);
+		const { error } = await supabase
+			.from('jobs')
+			.delete()
+			.in(
+				'id',
+				selectedJobs.map((job) => job.id)
+			);
 		if (!error) {
 			fetchJobs(currentPageNum);
-			setSelected([]);
+			setAlertDialog('Jobs deleted');
 		} else console.log(error);
 	};
 
@@ -213,7 +238,7 @@ export default function Dashboard() {
 
 		let { data: jobs, error } = await query;
 		if (jobs) {
-			setCurrentJobsPage(jobs);
+			setCurrentJobs(jobs);
 		}
 		if (error) {
 			console.log(error);
@@ -273,22 +298,22 @@ export default function Dashboard() {
 
 	useEffect(() => {
 		fetchJobs(currentPageNum);
-	}, [currentPageNum]);
+	}, [sortedBy, filteredBy, searchQuery, currentPageNum]);
 
 	useEffect(() => {
-		fetchJobs();
-	}, [sortedBy, filteredBy, searchQuery]);
+		setSelectedJobs([]);
+	}, [currentJobs]);
 
 	useEffect(() => {
 		setTimeout(() => {
-			setAlertDialog(null);
+			alertDialog ? setAlertDialog(null) : setAlertErrorDialog(null);
 		}, 3000);
-	}, [alertDialog]);
+	}, [alertDialog, alertErrorDialog]);
 
-	// Reset active page button to 1 when filtering applied
+	// Reset active page button to 1 when filtering or sorting applied
 	useEffect(() => {
 		setCurrentPageNum(0);
-	}, [selected]);
+	}, [sortedBy, filteredBy]);
 
 	return (
 		<div className='flex min-h-screen w-full flex-col bg-muted/40'>
@@ -305,7 +330,6 @@ export default function Dashboard() {
 									sortedBy === 'active'
 										? setSortedBy('all')
 										: setSortedBy('active');
-									setSelected([]);
 								}}
 							>
 								Active
@@ -316,7 +340,6 @@ export default function Dashboard() {
 									sortedBy === 'applied'
 										? setSortedBy('all')
 										: setSortedBy('applied');
-									setSelected([]);
 								}}
 							>
 								Applied
@@ -348,7 +371,6 @@ export default function Dashboard() {
 												? prev.filter((filter) => filter !== 'date')
 												: [...prev, 'date']
 										);
-										setSelected([]);
 									}}
 								>
 									Date
@@ -362,7 +384,6 @@ export default function Dashboard() {
 												? prev.filter((filter) => filter !== 'local')
 												: [...prev, 'local']
 										);
-										setSelected([]);
 									}}
 								>
 									Local
@@ -376,7 +397,6 @@ export default function Dashboard() {
 												? prev.filter((filter) => filter !== 'remote')
 												: [...prev, 'remote']
 										);
-										setSelected([]);
 									}}
 								>
 									Remote
@@ -408,7 +428,16 @@ export default function Dashboard() {
 					) : (
 						''
 					)}
-					{selected.length > 0 ? (
+					{alertErrorDialog ? (
+						<Alert variant='destructive'>
+							<AlertCircle className='h-4 w-4' />
+							<AlertTitle>Error</AlertTitle>
+							<AlertDescription>{alertErrorDialog}</AlertDescription>
+						</Alert>
+					) : (
+						''
+					)}
+					{selectedJobs.length > 0 ? (
 						<div className='flex gap-1'>
 							<AlertDialog>
 								<AlertDialogTrigger asChild>
@@ -432,7 +461,6 @@ export default function Dashboard() {
 										<AlertDialogAction
 											onClick={() => {
 												deleteSelected();
-												setAlertDialog('Jobs deleted');
 											}}
 										>
 											Delete
@@ -445,11 +473,19 @@ export default function Dashboard() {
 								variant='outline'
 								className='hover:bg-green-600'
 								onClick={() => {
-									markSelectedApplied();
-									setAlertDialog('Jobs marked as applied');
+									markSelectedJobsApplied(true);
 								}}
 							>
 								Mark Applied
+							</Button>
+							<Button
+								variant='outline'
+								className='hover:bg-blue-600'
+								onClick={() => {
+									markSelectedJobsApplied(false);
+								}}
+							>
+								Mark Active
 							</Button>
 						</div>
 					) : (
@@ -483,17 +519,20 @@ export default function Dashboard() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{currentJobsPage.map((job) => {
+										{currentJobs.map((job) => {
 											return (
 												<TableRow key={job.id}>
 													<TableCell>
 														<div className='flex items-center gap-2'>
 															<Checkbox
 																onCheckedChange={(checked) => {
-																	setSelected((prev) =>
+																	setSelectedJobs((prev) =>
 																		checked
-																			? [...prev, job.id]
-																			: selected.filter((id) => id !== job.id)
+																			? [...prev, job]
+																			: selectedJobs.filter(
+																					(selectedJob) =>
+																						selectedJob.id !== job.id
+																				)
 																	);
 																}}
 															/>
@@ -552,8 +591,7 @@ export default function Dashboard() {
 																<DropdownMenuItem
 																	className='cursor-pointer'
 																	onClick={() => {
-																		markSingleApplied(job.id);
-																		setAlertDialog('Job marked applied');
+																		markSingleApplied(job, true);
 																	}}
 																>
 																	Mark Applied
@@ -561,8 +599,15 @@ export default function Dashboard() {
 																<DropdownMenuItem
 																	className='cursor-pointer'
 																	onClick={() => {
-																		deleteSingle(job.id);
-																		setAlertDialog('Job deleted');
+																		markSingleApplied(job, false);
+																	}}
+																>
+																	Mark Active
+																</DropdownMenuItem>
+																<DropdownMenuItem
+																	className='cursor-pointer'
+																	onClick={() => {
+																		deleteSingle(job);
 																	}}
 																>
 																	Delete
