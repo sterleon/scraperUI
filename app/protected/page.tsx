@@ -108,39 +108,56 @@ export default function Dashboard() {
 	};
 
 	const markSingleApplied = async (job: Job, apply: boolean) => {
-		if ((job.applied && !apply) || (!job.applied && apply)) {
+		if (job.applied === apply) {
+			setAlertErrorDialog(apply ? 'Job already applied' : 'Job already active');
+			return;
+		}
+
+		try {
 			const { data, error } = await supabase
 				.from('jobs')
-				.update({ applied: apply ? true : false })
+				.update({ applied: apply })
 				.eq('id', job.id)
 				.select();
+
+			if (error) {
+				console.error('Error updating job:', error);
+				return;
+			}
+
 			if (data) {
 				fetchJobs(currentPageNum);
 				setAlertDialog(apply ? 'Job marked applied' : 'Job marked active');
 			}
-			if (error) {
-				console.log(error);
-			}
-		} else {
-			if (job.applied && apply) {
-				setAlertErrorDialog('Job already applied');
-			} else setAlertErrorDialog('Job already active');
+		} catch (err) {
+			console.error('Unexpected error:', err);
 		}
 	};
+
 	const markSelectedJobsApplied = async (apply: boolean) => {
-		const { error } = await supabase
-			.from('jobs')
-			.update({ applied: apply ? true : false })
-			.in(
-				'id',
-				selectedJobs.map((job) => job.id)
-			);
-		if (!error) {
-			fetchJobs(currentPageNum);
-			setAlertDialog(
-				apply ? 'Jobs marked as applied' : 'Jobs marked as active'
-			);
-		} else console.log(error);
+		const numApplied = selectedJobs.filter((job) => job.applied);
+		if (
+			(numApplied.length == selectedJobs.length && !apply) ||
+			(numApplied.length == 0 && apply)
+		) {
+			const { error } = await supabase
+				.from('jobs')
+				.update({ applied: apply ? true : false })
+				.in(
+					'id',
+					selectedJobs.map((job) => job.id)
+				);
+			if (!error) {
+				fetchJobs(currentPageNum);
+				setAlertDialog(
+					apply ? 'Jobs marked as applied' : 'Jobs marked as active'
+				);
+			} else console.log(error);
+		} else {
+			if (numApplied.length > 0 && apply) {
+				setAlertErrorDialog('One or more selected already applied');
+			} else setAlertErrorDialog('One or more selected already active');
+		}
 	};
 
 	const deleteSingle = async (job: Job) => {
