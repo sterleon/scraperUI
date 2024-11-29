@@ -2,6 +2,7 @@
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
+import { FilterType, Job, Query, SortType } from '../types';
 
 import Filtering from '@/components/ui/Filtering';
 import AlertPopup from '@/components/ui/AlertPopup';
@@ -9,7 +10,6 @@ import AlertPopupError from '@/components/ui/AlertPopupError';
 import SelectedJobsControls from '@/components/ui/SelectedJobsControls';
 import MainTable from '@/components/ui/MainTable';
 import MainPagination from '@/components/ui/MainPagination';
-import { FilterType, Job, Query, SortType } from '../types';
 
 export default function Dashboard() {
 	const supabase = createClient();
