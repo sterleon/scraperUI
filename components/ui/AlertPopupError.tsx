@@ -2,15 +2,15 @@ import { AlertCircle } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from './alert';
 
 interface Props {
-	alertErrorDialogMsg: string;
+	alertDialogueMsg: string;
 }
 
-const AlertPopupError = ({ alertErrorDialogMsg }: Props) => {
+const AlertPopupError = ({ alertDialogueMsg }: Props) => {
 	return (
 		<Alert variant='destructive'>
 			<AlertCircle className='h-4 w-4' />
 			<AlertTitle>Error</AlertTitle>
-			<AlertDescription>{alertErrorDialogMsg}</AlertDescription>
+			<AlertDescription>{alertDialogueMsg}</AlertDescription>
 		</Alert>
 	);
 };

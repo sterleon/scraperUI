@@ -27,7 +27,7 @@ import {
 } from './table';
 import { Dispatch, SetStateAction } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { Job } from '@/app/types';
+import { AlertDialogMsg, Job } from '@/app/types';
 
 interface Props {
 	currentJobs: Job[];
@@ -38,8 +38,7 @@ interface Props {
 		to: number;
 	};
 	numJobs: number | null;
-	setAlertDialogMsg: Dispatch<SetStateAction<string | null>>;
-	setAlertErrorDialogMsg: Dispatch<SetStateAction<string | null>>;
+	setAlertDialogueMsg: Dispatch<SetStateAction<AlertDialogMsg>>;
 	fetchJobs: (pageNum?: number) => Promise<void>;
 	currentPageNum: number;
 }
@@ -50,8 +49,7 @@ const MainTable = ({
 	setSelectedJobs,
 	currentJobRange,
 	numJobs,
-	setAlertDialogMsg,
-	setAlertErrorDialogMsg,
+	setAlertDialogueMsg,
 	fetchJobs,
 	currentPageNum,
 }: Props) => {
@@ -68,8 +66,16 @@ const MainTable = ({
 
 	const markSingleApplied = async (job: Job, apply: boolean) => {
 		if (job.applied === apply) {
-			setAlertErrorDialogMsg(
-				apply ? 'Job already applied' : 'Job already active'
+			setAlertDialogueMsg(
+				apply
+					? {
+							type: 'error',
+							msg: 'Job already applied',
+						}
+					: {
+							type: 'error',
+							msg: 'Job already active',
+						}
 			);
 			return;
 		}
@@ -88,7 +94,17 @@ const MainTable = ({
 
 			if (data) {
 				fetchJobs(currentPageNum);
-				setAlertDialogMsg(apply ? 'Job marked applied' : 'Job marked active');
+				setAlertDialogueMsg(
+					apply
+						? {
+								type: 'success',
+								msg: 'Job marked applied',
+							}
+						: {
+								type: 'success',
+								msg: 'Job marked active',
+							}
+				);
 			}
 		} catch (err) {
 			console.error('Unexpected error:', err);
@@ -99,7 +115,10 @@ const MainTable = ({
 		const { error } = await supabase.from('jobs').delete().eq('id', job.id);
 		if (!error) {
 			fetchJobs(currentPageNum);
-			setAlertDialogMsg('Job deleted');
+			setAlertDialogueMsg({
+				type: 'success',
+				msg: 'Job deleted',
+			});
 		} else console.log(error);
 	};
 	return (

@@ -12,6 +12,11 @@ export interface Job {
 	location: string;
 }
 
+export interface AlertDialogueMsg {
+	type: string;
+	msg: string;
+}
+
 export type Query = PostgrestFilterBuilder<any, any, any[], 'jobs', unknown>;
 export type SortType = 'all' | 'active' | 'applied';
 export type FilterType = 'date' | 'local' | 'remote';

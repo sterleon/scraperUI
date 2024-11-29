@@ -2,7 +2,7 @@
 import { createClient } from '@/utils/supabase/client';
 import { redirect } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { FilterType, Job, Query, SortType } from '../types';
+import { AlertDialogueMsg, FilterType, Job, Query, SortType } from '../types';
 
 import Filtering from '@/components/ui/Filtering';
 import AlertPopup from '@/components/ui/AlertPopup';
@@ -20,10 +20,10 @@ const Dashboard = () => {
 	const [filteredBy, setFilteredBy] = useState<FilterType[]>([]);
 	const [searchQuery, setSearchQuery] = useState<string>('');
 	const [selectedJobs, setSelectedJobs] = useState<Job[]>([]);
-	const [alertDialogMsg, setAlertDialogMsg] = useState<string | null>(null);
-	const [alertErrorDialogMsg, setAlertErrorDialogMsg] = useState<string | null>(
-		null
-	);
+	const [alertDialogueMsg, setAlertDialogueMsg] = useState<AlertDialogueMsg>({
+		type: '',
+		msg: '',
+	});
 	const [numJobs, setNumJobs] = useState<number | null>(null);
 	const [currentJobRange, setCurrentJobRange] = useState({
 		from: 1,
@@ -135,15 +135,30 @@ const Dashboard = () => {
 				);
 			if (!error) {
 				fetchJobs(currentPageNum);
-				setAlertDialogMsg(
-					apply ? 'Jobs marked as applied' : 'Jobs marked as active'
+				setAlertDialogueMsg(
+					apply
+						? {
+								type: 'success',
+								msg: 'Jobs marked as applied',
+							}
+						: {
+								type: 'success',
+								msg: 'Jobs marked as active',
+							}
 				);
 			} else console.log(error);
-		} else {
-			if (numApplied.length > 0 && apply) {
-				setAlertErrorDialogMsg('One or more selected already applied');
-			} else setAlertErrorDialogMsg('One or more selected already active');
-		}
+		} else
+			setAlertDialogueMsg(
+				numApplied.length > 0 && apply
+					? {
+							type: 'error',
+							msg: 'One or more selected already applied',
+						}
+					: {
+							type: 'error',
+							msg: 'One or more selected already active',
+						}
+			);
 	};
 
 	const deleteSelected = async () => {
@@ -155,8 +170,6 @@ const Dashboard = () => {
 				selectedJobs.map((job) => job.id)
 			);
 		if (!error) {
-			fetchJobs(currentPageNum);
-			setAlertDialogMsg('Jobs deleted');
 		} else console.log(error);
 	};
 
@@ -174,9 +187,12 @@ const Dashboard = () => {
 
 	useEffect(() => {
 		setTimeout(() => {
-			alertDialogMsg ? setAlertDialogMsg(null) : setAlertErrorDialogMsg(null);
-		}, 3000);
-	}, [alertDialogMsg, alertErrorDialogMsg]);
+			setAlertDialogueMsg({
+				type: '',
+				msg: '',
+			});
+		}, 5000);
+	}, [alertDialogueMsg]);
 
 	// Reset active page button to 1 when filtering or sorting applied
 	useEffect(() => {
@@ -194,33 +210,26 @@ const Dashboard = () => {
 					searchRef={searchRef}
 					setSearchQuery={setSearchQuery}
 				/>
-				{alertDialogMsg ? <AlertPopup alertDialogMsg={alertDialogMsg} /> : ''}
-				{alertErrorDialogMsg ? (
-					<AlertPopupError alertErrorDialogMsg={alertErrorDialogMsg} />
-				) : (
-					''
+				{alertDialogueMsg.type && (
+					<AlertPopup alertDialogueMsg={alertDialogueMsg} />
 				)}
-				{selectedJobs.length > 0 ? (
+
+				{selectedJobs.length > 0 && (
 					<SelectedJobsControls
 						deleteSelected={deleteSelected}
 						markSelectedJobsApplied={markSelectedJobsApplied}
 					/>
-				) : (
-					''
 				)}
-
 				<MainTable
 					currentJobs={currentJobs}
 					selectedJobs={selectedJobs}
 					setSelectedJobs={setSelectedJobs}
 					currentJobRange={currentJobRange}
 					numJobs={numJobs}
-					setAlertDialogMsg={setAlertDialogMsg}
-					setAlertErrorDialogMsg={setAlertErrorDialogMsg}
+					setAlertDialogueMsg={setAlertDialogueMsg}
 					fetchJobs={fetchJobs}
 					currentPageNum={currentPageNum}
 				/>
-
 				<MainPagination
 					currentPageNum={currentPageNum}
 					setCurrentPageNum={setCurrentPageNum}
