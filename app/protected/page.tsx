@@ -11,7 +11,7 @@ import SelectedJobsControls from '@/components/ui/SelectedJobsControls';
 import MainTable from '@/components/ui/MainTable';
 import MainPagination from '@/components/ui/MainPagination';
 
-export default function Dashboard() {
+const Dashboard = () => {
 	const supabase = createClient();
 	const [currentJobs, setCurrentJobs] = useState<Job[]>([]);
 	const [currentPageNum, setCurrentPageNum] = useState<number>(0);
@@ -229,4 +229,6 @@ export default function Dashboard() {
 			</main>
 		</div>
 	);
-}
+};
+
+export default Dashboard;
