@@ -41,6 +41,7 @@ interface Props {
 	setAlertDialogueMsg: Dispatch<SetStateAction<AlertDialogueMsg>>;
 	fetchJobs: (pageNum?: number) => Promise<void>;
 	currentPageNum: number;
+	getCurrentFormattedDate: () => string;
 }
 
 const MainTable = ({
@@ -52,6 +53,7 @@ const MainTable = ({
 	setAlertDialogueMsg,
 	fetchJobs,
 	currentPageNum,
+	getCurrentFormattedDate,
 }: Props) => {
 	const supabase = createClient();
 	const formatDate = (dateString: string): string => {
@@ -82,7 +84,7 @@ const MainTable = ({
 
 		const { data, error } = await supabase
 			.from('jobs')
-			.update({ applied: apply })
+			.update({ applied: apply, updated_at: getCurrentFormattedDate() })
 			.eq('id', job.id)
 			.select();
 
@@ -131,8 +133,8 @@ const MainTable = ({
 							<TableHead>Status</TableHead>
 							<TableHead className='hidden md:table-cell'>Company</TableHead>
 							<TableHead className='hidden md:table-cell'>Location</TableHead>
-							<TableHead className='hidden md:table-cell'>Created at</TableHead>
-							<TableHead className='hidden md:table-cell'>Updated at</TableHead>
+							<TableHead className='hidden md:table-cell'>Added</TableHead>
+							<TableHead className='hidden md:table-cell'>Applied</TableHead>
 							<TableHead>Actions</TableHead>
 						</TableRow>
 					</TableHeader>

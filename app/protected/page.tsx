@@ -32,6 +32,20 @@ const Dashboard = () => {
 	const searchRef = useRef<HTMLInputElement>(null);
 	const pageLimit = 10;
 
+	const getCurrentFormattedDate = () => {
+		const now = new Date();
+		const year = now.getUTCFullYear();
+		const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+		const day = String(now.getUTCDate()).padStart(2, '0');
+		const hours = String(now.getUTCHours()).padStart(2, '0');
+		const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+		const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+		const milliseconds = String(now.getUTCMilliseconds()).padStart(3, '0');
+		const microseconds = milliseconds + '000';
+
+		return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${microseconds}+00:00`;
+	};
+
 	const getPageRange = (page?: number) => {
 		const from = page ? page * pageLimit : 0;
 		const to = page ? from + (pageLimit - 1) : pageLimit - 1;
@@ -127,7 +141,10 @@ const Dashboard = () => {
 		) {
 			const { error } = await supabase
 				.from('jobs')
-				.update({ applied: apply ? true : false })
+				.update({
+					applied: apply ? true : false,
+					updated_at: getCurrentFormattedDate(),
+				})
 				.in(
 					'id',
 					selectedJobs.map((job) => job.id)
@@ -185,12 +202,14 @@ const Dashboard = () => {
 	}, [currentJobs]);
 
 	useEffect(() => {
-		setTimeout(() => {
-			setAlertDialogueMsg({
-				type: '',
-				msg: '',
-			});
-		}, 5000);
+		if (alertDialogueMsg.msg) {
+			setTimeout(() => {
+				setAlertDialogueMsg({
+					type: '',
+					msg: '',
+				});
+			}, 5000);
+		}
 	}, [alertDialogueMsg]);
 
 	// Reset active page button to 1 when filtering or sorting applied
@@ -228,6 +247,7 @@ const Dashboard = () => {
 					setAlertDialogueMsg={setAlertDialogueMsg}
 					fetchJobs={fetchJobs}
 					currentPageNum={currentPageNum}
+					getCurrentFormattedDate={getCurrentFormattedDate}
 				/>
 				<MainPagination
 					currentPageNum={currentPageNum}
