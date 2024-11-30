@@ -6,7 +6,6 @@ import { AlertDialogueMsg, FilterType, Job, Query, SortType } from '../types';
 
 import Filtering from '@/components/ui/Filtering';
 import AlertPopup from '@/components/ui/AlertPopup';
-import AlertPopupError from '@/components/ui/AlertPopupError';
 import SelectedJobsControls from '@/components/ui/SelectedJobsControls';
 import MainTable from '@/components/ui/MainTable';
 import MainPagination from '@/components/ui/MainPagination';
