@@ -27,7 +27,7 @@ import {
 } from './table';
 import { Dispatch, SetStateAction } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { AlertDialogMsg, Job } from '@/app/types';
+import { AlertDialogueMsg, Job } from '@/app/types';
 
 interface Props {
 	currentJobs: Job[];
@@ -38,7 +38,7 @@ interface Props {
 		to: number;
 	};
 	numJobs: number | null;
-	setAlertDialogueMsg: Dispatch<SetStateAction<AlertDialogMsg>>;
+	setAlertDialogueMsg: Dispatch<SetStateAction<AlertDialogueMsg>>;
 	fetchJobs: (pageNum?: number) => Promise<void>;
 	currentPageNum: number;
 }
@@ -80,34 +80,30 @@ const MainTable = ({
 			return;
 		}
 
-		try {
-			const { data, error } = await supabase
-				.from('jobs')
-				.update({ applied: apply })
-				.eq('id', job.id)
-				.select();
+		const { data, error } = await supabase
+			.from('jobs')
+			.update({ applied: apply })
+			.eq('id', job.id)
+			.select();
 
-			if (error) {
-				console.error('Error updating job:', error);
-				return;
-			}
+		if (error) {
+			console.error('Error updating job:', error);
+			return;
+		}
 
-			if (data) {
-				fetchJobs(currentPageNum);
-				setAlertDialogueMsg(
-					apply
-						? {
-								type: 'success',
-								msg: 'Job marked applied',
-							}
-						: {
-								type: 'success',
-								msg: 'Job marked active',
-							}
-				);
-			}
-		} catch (err) {
-			console.error('Unexpected error:', err);
+		if (data) {
+			fetchJobs(currentPageNum);
+			setAlertDialogueMsg(
+				apply
+					? {
+							type: 'success',
+							msg: 'Job marked applied',
+						}
+					: {
+							type: 'success',
+							msg: 'Job marked active',
+						}
+			);
 		}
 	};
 
