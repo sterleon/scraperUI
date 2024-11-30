@@ -85,8 +85,12 @@ const Dashboard = () => {
 			);
 		}
 
-		if (filteredBy.includes('date')) {
+		if (filteredBy.includes('add_date')) {
 			baseQuery = baseQuery.order('created_at', { ascending: false });
+		}
+
+		if (filteredBy.includes('apply_date')) {
+			baseQuery = baseQuery.order('updated_at', { ascending: false });
 		}
 
 		return baseQuery;
@@ -143,7 +147,7 @@ const Dashboard = () => {
 				.from('jobs')
 				.update({
 					applied: apply ? true : false,
-					updated_at: getCurrentFormattedDate(),
+					updated_at: apply ? getCurrentFormattedDate() : null,
 				})
 				.in(
 					'id',

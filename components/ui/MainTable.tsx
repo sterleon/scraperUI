@@ -63,7 +63,9 @@ const MainTable = ({
 		const month = date.getUTCMonth() + 1;
 		const year = date.getUTCFullYear();
 
-		return `${month}-${day}-${year}`;
+		return `${month}-${day}-${year}` === '1-1-1970'
+			? '-'
+			: `${month}-${day}-${year}`;
 	};
 
 	const markSingleApplied = async (job: Job, apply: boolean) => {
@@ -84,7 +86,10 @@ const MainTable = ({
 
 		const { data, error } = await supabase
 			.from('jobs')
-			.update({ applied: apply, updated_at: getCurrentFormattedDate() })
+			.update({
+				applied: apply,
+				updated_at: apply ? getCurrentFormattedDate() : null,
+			})
 			.eq('id', job.id)
 			.select();
 

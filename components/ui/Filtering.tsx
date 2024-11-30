@@ -74,16 +74,29 @@ const Filtering = ({
 					<DropdownMenuSeparator />
 					<DropdownMenuCheckboxItem
 						className='cursor-pointer'
-						checked={filteredBy.includes('date') ? true : false}
+						checked={filteredBy.includes('add_date') ? true : false}
 						onClick={() => {
 							setFilteredBy((prev) =>
-								prev.includes('date')
-									? prev.filter((filter) => filter !== 'date')
-									: [...prev, 'date']
+								prev.includes('add_date')
+									? prev.filter((filter) => filter !== 'add_date')
+									: [...prev, 'add_date']
 							);
 						}}
 					>
-						Date
+						Date Added
+					</DropdownMenuCheckboxItem>
+					<DropdownMenuCheckboxItem
+						className='cursor-pointer'
+						checked={filteredBy.includes('apply_date') ? true : false}
+						onClick={() => {
+							setFilteredBy((prev) =>
+								prev.includes('apply_date')
+									? prev.filter((filter) => filter !== 'apply_date')
+									: [...prev, 'apply_date']
+							);
+						}}
+					>
+						Date Applied
 					</DropdownMenuCheckboxItem>
 					<DropdownMenuCheckboxItem
 						className='cursor-pointer'

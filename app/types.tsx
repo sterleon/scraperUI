@@ -19,4 +19,4 @@ export interface AlertDialogueMsg {
 
 export type Query = PostgrestFilterBuilder<any, any, any[], 'jobs', unknown>;
 export type SortType = 'all' | 'active' | 'applied';
-export type FilterType = 'date' | 'local' | 'remote';
+export type FilterType = 'add_date' | 'apply_date' | 'local' | 'remote';
